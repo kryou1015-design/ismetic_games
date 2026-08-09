@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>투명한 호수 (Clearwater)</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="hud" id="loc">🏞️ 릴리 폰드<small>아침 · Clearwater</small></div>
+<button class="hud" id="invBtn">🎒 가방<span id="invCount">0</span></button>
+<div class="hud" id="goldPill">🪙 <span id="goldVal">0</span>G</div>
+<div class="hud" id="weatherPill">☀️ 한낮 · ☀️ 맑음</div>
+<button class="hud iconBtn" id="mapBtn">🗺️</button>
+<button class="hud iconBtn" id="dexBtn">📖</button>
+<button class="hud iconBtn" id="sndBtn">🔊</button>
+<button class="hud iconBtn" id="decoBtn" style="display:none">🪴</button>
+<button class="hud iconBtn" id="albumBtn">📸</button>
+<div class="hud" id="hint"></div>
+<div class="hud" id="powerWrap"><div id="powerFill"></div></div>
+<button class="hud" id="castBtn">캐스팅</button>
+<div id="bang">❗</div>
+<div id="tut"></div>
+
+<div id="fight"><div id="fightCard">
+  <div id="fightTitle">🎣 물고기와 힘겨루기!</div>
+  <div id="tensionBar"><div id="needle"></div>
+    <button class="fbtn" style="left:0" data-dir="-1"></button>
+    <button class="fbtn" style="right:0" data-dir="1"></button></div>
+  <div id="prog"><div id="progFill"></div></div>
+  <div id="fightHint">바늘을 초록 구역에 유지! (좌/우 탭 또는 ←→ 키)</div>
+</div></div>
+
+<div id="photoPop" class="modal"><div class="mCard" style="align-items:center;text-align:center;width:auto;padding:20px 24px;">
+  <div id="photoFrame">
+    <div id="photoScene"></div>
+    <div id="photoCaption"></div>
+  </div>
+  <button id="photoClose" style="margin-top:14px;border:none;background:var(--deep);color:#fff;font-family:'Jua';font-size:14px;padding:9px 24px;border-radius:14px;cursor:pointer;">앨범에 저장</button>
+</div></div>
+
+<div id="album" class="modal"><div class="mCard">
+  <div class="mHead"><span class="mFace">📸</span>
+    <div><b>가족 앨범</b><small id="albumCount">0장</small></div>
+    <button class="xBtn" id="albumClose">✕</button></div>
+  <div id="albumGrid" class="pane"></div>
+</div></div>
+
+<div id="catchPop"><div id="catchCard">
+  <div id="catchFish">🐟</div><div id="catchName">붕어</div>
+  <div id="catchRarity">일반</div><div id="catchPrice">15G</div>
+  <div id="catchNew">✨ 도감 첫 등록!</div><br>
+  <button id="catchClose">가방에 넣기</button>
+</div></div>
+
+<div id="inv"><div id="invCard">
+  <h2>🎒 저장 가방</h2>
+  <div id="invList"><div id="invEmpty">아직 비어있어. 첫 물고기를 낚아보자!</div></div>
+  <button id="invClose">닫기</button>
+</div></div>
+
+<div id="wmap" class="modal"><div class="mCard">
+  <h2>🗺️ 월드맵</h2>
+  <div class="wmGrid">
+    <button class="wmItem" id="wmLake">🏞️<b>릴리 폰드</b><small>낚시터</small></button>
+    <button class="wmItem" id="wmRuins">🏛️<b>가라앉은 신전</b><small>낚시터</small></button>
+    <button class="wmItem" id="wmSea">🌊<b>등불 부두</b><small>낚시터</small></button>
+    <button class="wmItem" id="wmMarket">🏪<b>시장</b><small>판매 · 장비</small></button>
+    <button class="wmItem" id="wmHome">🏠<b>내 집</b><small>마당 · 개울 낚시</small></button>
+  </div>
+</div></div>
+
+<div id="market" class="modal"><div class="mCard">
+  <div class="mHead"><span class="mFace">🦦</span>
+    <div><b>오터 씨의 어시장</b><small>매일 추천 어종은 1.5배로 매입!</small></div>
+    <button class="xBtn" id="marketClose">✕</button></div>
+  <div id="featured"></div>
+  <div class="tabs">
+    <button class="tabBtn active" data-tab="sell">판매</button>
+    <button class="tabBtn" data-tab="shop">장비</button>
+    <button class="tabBtn" data-tab="deco">장식</button></div>
+  <div id="sellPane" class="pane"></div>
+  <div id="shopPane" class="pane" style="display:none"></div>
+  <div id="decoPane" class="pane" style="display:none"></div>
+</div></div>
+
+<div id="dex" class="modal"><div class="mCard">
+  <div class="mHead"><span class="mFace">📖</span>
+    <div><b>낚시 도감</b><small id="dexPct">0/24 (0%)</small></div>
+    <button class="xBtn" id="dexClose">✕</button></div>
+  <div id="dexGrid"></div>
+</div></div>
+<div id="toast"></div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
