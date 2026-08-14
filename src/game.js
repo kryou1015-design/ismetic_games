@@ -571,6 +571,9 @@ function loop(){
   W.waterTop.mat.uniforms.uT.value=tNow;
   W.floorMat.uniforms.uT.value=tNow;
   W.sideMats.forEach(m=>m.uniforms.uT.value=tNow);
+  /* 낮/밤·날씨에 따라 변하는 태양 색·세기를 물 반짝임에 반영 */
+  W.waterTop.mat.uniforms.uSunColor.value.set(sun.color.r, sun.color.g, sun.color.b);
+  W.waterTop.mat.uniforms.uSunStrength.value = sun.intensity;
   if(charAnim)charAnim.mixer.update(dt);
 
   const chr=W.chr;
