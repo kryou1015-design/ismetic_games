@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { SIZE, DEPTH, HALF } from './config.js';
+import { ginghamTexture, stripeTexture, skinTexture, feltTexture, woodTexture } from './textures.js';
 import { AREA_SPECIES as AREA_SPECIES_REF } from './data.js';
 import charUrl from './assets/dad_lowpoly.glb?url';
 import fishUrl from './assets/fish.glb?url';
@@ -172,7 +173,8 @@ export function buildEnvironment(scene){
   const walkables = [];
   const grassMat = new THREE.MeshStandardMaterial({color:0x74b654,roughness:.85});
   const dirtMat  = new THREE.MeshStandardMaterial({color:0x8a6b47,roughness:1});
-  const woodMat  = new THREE.MeshStandardMaterial({color:0x9c6b3d,roughness:.7});
+  const woodMat  = new THREE.MeshStandardMaterial({color:0x9c6b3d,roughness:.7,
+    map: woodTexture(0x9c6b3d,1,3)});
   const leafMat  = new THREE.MeshStandardMaterial({color:0x5faf4e,roughness:.9});
 
   const base = new THREE.Mesh(new THREE.BoxGeometry(SIZE+.14,.3,SIZE+.14), dirtMat);
@@ -357,9 +359,9 @@ export function decorateArea(group, areaId, DEPTH_, HALF_){
 
 export function buildCharacter(scene, woodMat){
   const chr=new THREE.Group();
-  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8});
-  const cloth=new THREE.MeshStandardMaterial({color:0xf2a65a,roughness:.85});
-  const hatM=new THREE.MeshStandardMaterial({color:0x4a8fa8,roughness:.85});
+  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8, map:skinTexture(0xffe3c7)});
+  const cloth=new THREE.MeshStandardMaterial({color:0xf2a65a,roughness:.85, map:ginghamTexture(0xf2a65a)});
+  const hatM=new THREE.MeshStandardMaterial({color:0x4a8fa8,roughness:.85, map:feltTexture(0x4a8fa8)});
   const body=new THREE.Mesh(new THREE.SphereGeometry(.19,16,12),cloth);
   body.scale.set(1,1.15,.9); body.position.y=.22;
   const head=new THREE.Mesh(new THREE.SphereGeometry(.24,18,14),skin); head.position.y=.62;
@@ -402,6 +404,18 @@ export async function upgradeAssets(chr, fishes){
   if(g){
     chr.userData.placeholder.forEach(p=>p.visible=false);
     const model = normalizeModel(g.scene, 1.05);
+    /* GLB 재질(Cloth/Skin/Hat/Wood)은 텍스처 없이 단색이라 밋밋해 보임 —
+       이름으로 찾아서 프로시저럴 텍스처를 입혀 표면 디테일을 준다 */
+    const matTex = {
+      Cloth: ginghamTexture(0xf2a65a), Skin: skinTexture(0xffe3c7),
+      Hat: feltTexture(0x4a8fa8), Wood: woodTexture(0x9c6b3d,1,3),
+    };
+    model.traverse(o=>{
+      if(o.isMesh && o.material && matTex[o.material.name] && !o.material.map){
+        o.material.map = matTex[o.material.name];
+        o.material.needsUpdate = true;
+      }
+    });
     chr.add(model);
     if(g.animations && g.animations.length){
       const mixer = new THREE.AnimationMixer(model);
@@ -469,9 +483,9 @@ export function makeDecoMesh(id){
 /* ---------- 아들 NPC (동행 캐릭터) ---------- */
 export function buildSon(scene, parentPos){
   const son=new THREE.Group();
-  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8});
-  const cloth=new THREE.MeshStandardMaterial({color:0x6aa8d8,roughness:.85}); // 파란 옷(아빠와 구분)
-  const hairM=new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:.8});
+  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8, map:skinTexture(0xffe3c7)});
+  const cloth=new THREE.MeshStandardMaterial({color:0x6aa8d8,roughness:.85, map:stripeTexture(0x6aa8d8)}); // 파란 스트라이프 옷(아빠와 구분)
+  const hairM=new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:.8, map:feltTexture(0x3a2a1a)});
   const scale=0.72; // 아빠보다 작은 아이 비율
   const body=new THREE.Mesh(new THREE.SphereGeometry(.16*scale/.9,16,12),cloth);
   body.scale.set(1,1.1,.9); body.position.y=.16;
