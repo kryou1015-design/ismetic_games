@@ -371,7 +371,21 @@ export function buildCharacter(scene, woodMat){
   const e1=new THREE.Mesh(new THREE.SphereGeometry(.028,8,8),eyeMt);
   const e2=e1.clone();
   e1.position.set(.1,.62,.2); e2.position.set(-.1,.62,.2);
-  const placeholder=[body,head,brim,cap,e1,e2];
+  const pantsM=new THREE.MeshStandardMaterial({color:0x5a4230,roughness:.85});
+  const shoeM=new THREE.MeshStandardMaterial({color:0x4a3222,roughness:.7});
+  const legs=[-.075,.075].map(x=>{
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.048,.09,4,8),pantsM);
+    leg.position.set(x,.06,0); return leg;
+  });
+  const shoes=[-.075,.075].map(x=>{
+    const shoe=new THREE.Mesh(new THREE.SphereGeometry(.06,8,6),shoeM);
+    shoe.scale.set(1,.65,1.3); shoe.position.set(x,.015,.02); return shoe;
+  });
+  const arms=[-.2,.2].map(x=>{
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.038,.19,4,8),cloth);
+    arm.position.set(x,.30,0); arm.rotation.z=x<0?.3:-.3; return arm;
+  });
+  const placeholder=[body,head,brim,cap,e1,e2,...legs,...shoes,...arms];
   const rod=new THREE.Mesh(new THREE.CylinderGeometry(.014,.02,1.3,8),woodMat);
   rod.position.set(.28,.75,.3); rod.rotation.set(Math.PI/3.5,0,-Math.PI/9);
   chr.add(...placeholder, rod);
@@ -500,7 +514,23 @@ export function buildSon(scene, parentPos){
   const c1=new THREE.Mesh(new THREE.SphereGeometry(.03,8,8),cheekM);
   const c2=c1.clone();
   c1.position.set(.14,.40,.14); c2.position.set(-.14,.40,.14);
-  son.add(body,head,hair,e1,e2,c1,c2);
+
+  /* 팔다리/신발 — 그냥 텍스처만 입은 공이 아니라 실제 사람처럼 보이도록 */
+  const pantsM=new THREE.MeshStandardMaterial({color:0x3d5a78,roughness:.85});
+  const shoeM=new THREE.MeshStandardMaterial({color:0x4a3222,roughness:.7});
+  const legs=[-.055,.055].map(x=>{
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.035,.07,4,8),pantsM);
+    leg.position.set(x,.045,0); return leg;
+  });
+  const shoes=[-.055,.055].map(x=>{
+    const shoe=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),shoeM);
+    shoe.scale.set(1,.65,1.3); shoe.position.set(x,.012,.015); return shoe;
+  });
+  const arms=[-.15,.15].map(x=>{
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.028,.15,4,8),cloth);
+    arm.position.set(x,.23,0); arm.rotation.z=x<0?.32:-.32; return arm;
+  });
+  son.add(body,head,hair,e1,e2,c1,c2,...legs,...shoes,...arms);
   son.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
   son.position.copy(parentPos);
   scene.add(son);
