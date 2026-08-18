@@ -85,7 +85,8 @@ const CORAL_SETS = {
 export function enrichSeabed(group, areaId){
   const colors = CORAL_SETS[areaId] || CORAL_SETS.lake;
   const glowMul = areaId==='sea' ? 1.0 : .35;
-  for(let cl=0; cl<5; cl++){
+  const clusterN = Math.round(5*(SIZE/6));
+  for(let cl=0; cl<clusterN; cl++){
     const cx=(Math.random()-.5)*SIZE*.8, cz=(Math.random()-.5)*SIZE*.8;
     const n=2+Math.floor(Math.random()*3);
     for(let i=0;i<n;i++){
@@ -102,7 +103,7 @@ export function enrichSeabed(group, areaId){
     }
   }
   if(areaId==='sea'){
-    const n=40, geo=new THREE.BufferGeometry();
+    const n=Math.round(40*(SIZE/6)), geo=new THREE.BufferGeometry();
     const pos=new Float32Array(n*3);
     for(let i=0;i<n;i++){
       pos[i*3]=(Math.random()-.5)*SIZE*.9;

@@ -8,7 +8,20 @@ const TIME_STATES = [
   { name:'노을',  em:'🌇', elev:15,  azim:250, color:0xffa060, sunI:1.0, hemi:0xe8b8a0, hemiI:.6,  skyTop:0xf6d8b8, skyBot:0xe89a7a },
   { name:'밤',    em:'🌙', elev:35,  azim:300, color:0x9fb4ff, sunI:.35, hemi:0x5a6a98, hemiI:.4,  skyTop:0x2c3e66, skyBot:0x40548c },
 ];
-const DAY_LEN = 210; // 4구간 전체 순환 초 (약 3.5분/사이클)
+/* 실제 접속 시각(로컬) 기준 4구간 시작 시각 — TIME_STATES와 순서 일치
+   새벽 05:00 → 한낮 08:00 → 노을 17:00 → 밤 19:30 → (다음날 05:00) */
+const SEG_START = [5, 8, 17, 19.5];
+const SEG_CUM = [0, 3, 12, 14.5, 24]; // SEG_START[0](=5시)을 0으로 둔 누적 길이(시간)
+
+function dayPhase(){
+  const now = new Date();
+  let t = now.getHours() + now.getMinutes()/60 + now.getSeconds()/3600 - SEG_START[0];
+  if(t<0) t += 24;
+  let idx = 3;
+  for(let i=0;i<4;i++){ if(t>=SEG_CUM[i] && t<SEG_CUM[i+1]){ idx=i; break; } }
+  const localT = (t-SEG_CUM[idx])/(SEG_CUM[idx+1]-SEG_CUM[idx]);
+  return { idx, next:(idx+1)%4, localT };
+}
 
 const WEATHER_STATES = {
   clear:  { name:'맑음',   em:'☀️', lightMul:1.0, fogDensity:0.0,  bloomMul:1.0, rain:false },
@@ -21,7 +34,6 @@ function lerpColor(a,b,t){ return new THREE.Color(a).lerp(new THREE.Color(b), t)
 function lerpAngle(a,b,t){ return a+(b-a)*t; }
 
 export function createEnvironment(scene, sun, hemi){
-  let dayT = Math.random()*DAY_LEN;
   let weatherKey = 'clear';
   let weatherT = 0;
   let weatherDur = WEATHER_MIN_DUR + Math.random()*(WEATHER_MAX_DUR-WEATHER_MIN_DUR);
@@ -54,11 +66,7 @@ export function createEnvironment(scene, sun, hemi){
   }
 
   function update(dt, areaSky, areaNightForced){
-    dayT = (dayT+dt) % DAY_LEN;
-    const seg = DAY_LEN/4;
-    const idx = Math.floor(dayT/seg);
-    const next = (idx+1)%4;
-    const localT = (dayT%seg)/seg;
+    const { idx, next, localT } = dayPhase();
     const A = TIME_STATES[idx], B = TIME_STATES[next];
 
     const elev = lerpAngle(A.elev,B.elev,localT);
@@ -104,11 +112,12 @@ export function createEnvironment(scene, sun, hemi){
       rain.position.set(0,0,0);
     }
 
+    const showA = A.name===B.name || localT<.5;
     return {
-      timeName:A.name==B.name?A.name:(localT<.5?A.name:B.name), timeEm:A.em,
+      timeName: showA?A.name:B.name, timeEm: showA?A.em:B.em,
       weatherName:W.name, weatherEm:W.em, bloomMul, isNight: idx===3 || areaNightForced
     };
   }
 
-  return { update, get dayT(){return dayT;}, get weatherKey(){return weatherKey;} };
+  return { update, get dayT(){return dayPhase();}, get weatherKey(){return weatherKey;} };
 }

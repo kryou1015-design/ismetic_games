@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SIZE, DEPTH, HALF } from './config.js';
+import { SIZE, DEPTH, HALF, shoreLayout } from './config.js';
 import { AREAS, RAR_NAME, RAR_COL, rollSpecies, ROD_TIERS, FIGHT_DIFF,
          XP_PER_RAR, levelOf } from './data.js';
 import { S, save, load } from './state.js';
@@ -17,6 +17,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { toonify } from './toon.js';
 
 export function start(){
 load();
@@ -33,10 +34,14 @@ renderer.toneMappingExposure = 1.15;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const frust = 9;
+/* 맵(SIZE)이 커진 만큼 카메라도 넓혀야 화면 안에 다 들어오지만, SIZE와 똑같은 비율로
+   줌아웃하면 실제 크기는 커져도 화면상 크기는 그대로라 "커졌다"는 느낌이 안 남.
+   sqrt로 덜 줌아웃시켜서 맵이 화면에서도 실제로 더 크게 보이게 함 */
+const CAM_K = Math.sqrt(SIZE/6);
+const frust = 9*CAM_K;
 let aspect = innerWidth/innerHeight;
-const camera = new THREE.OrthographicCamera(-frust*aspect/2, frust*aspect/2, frust/2, -frust/2, .1, 100);
-camera.position.set(9.2, 7.4, 9.2); camera.lookAt(0,-.5,0);
+const camera = new THREE.OrthographicCamera(-frust*aspect/2, frust*aspect/2, frust/2, -frust/2, .1, 200);
+camera.position.set(9.2*CAM_K, 7.4*CAM_K, 9.2*CAM_K); camera.lookAt(0,-.5,0);
 
 /* 블룸 포스트프로세싱 */
 const composer = new EffectComposer(renderer);
@@ -115,10 +120,10 @@ function buildWorld(areaId){
   const env = buildEnvironment(group);
   decorateArea(group, areaId, DEPTH, HALF);
   const fishes = spawnFishes(group, areaId);
-  upgradeFishBodies(fishes);
+  upgradeFishBodies(fishes).then(()=>toonify(group));
   const { chr, rodTip } = buildCharacter(group, env.woodMat);
   const { bobG, fline } = buildBobber(group);
-  upgradeAssets(chr, fishes).then(a=>{ charAnim=a; });
+  upgradeAssets(chr, fishes).then(a=>{ charAnim=a; toonify(chr); });
 
   aimIndicator = new THREE.Mesh(new THREE.ConeGeometry(.05,.4,3),
     new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.55}));
@@ -148,6 +153,8 @@ function buildWorld(areaId){
       world.decoMeshes.push({mesh:m, id:d.id, x:d.x, z:d.z});
     });
   }
+  /* PBR 그라데이션 음영 → 셀셰이딩으로 일괄 변환 (동기적으로 지어진 것 전부) */
+  toonify(group);
 }
 function splash(x,z){
   world.waterTop.mat.uniforms.uRip.value[(ripCount++)%5].set(x,-z,tNow,1);
@@ -290,6 +297,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       const m=makeDecoMesh(decoSel);
       m.position.set(hitW.point.x,.46,hitW.point.z);
       world.group.add(m);
+      toonify(m);
       world.decoMeshes.push({mesh:m,id:decoSel,x:hitW.point.x,z:hitW.point.z});
       S.decoInv[decoSel]--; S.deco.push({id:decoSel,x:hitW.point.x,z:hitW.point.z});
       save();
@@ -311,12 +319,15 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   const hitT=ray.intersectObject(world.waterTop.mesh)[0];
   if(hitT)splash(hitT.point.x,hitT.point.z);
 });
+/* buildEnvironment()의 물가 잔디밭/데크 치수와 같은 공식(shoreLayout)을 그대로 써서
+   맵 크기가 바뀌어도 걸을 수 있는 영역이 항상 실제 지형과 일치하게 유지 */
+const SHORE = shoreLayout();
 function clampToWalk(v){
-  const ix=-HALF+1.1,iz=-HALF+1.1;
-  if(Math.abs(v.x-ix)<=1.05&&Math.abs(v.z-iz)<=1.05)return;
-  const px0=-HALF+2.1,pz=-HALF+1.1;
+  const ix=SHORE.shoreX,iz=SHORE.shoreZ, r=SHORE.patchOfs-.05;
+  if(Math.abs(v.x-ix)<=r&&Math.abs(v.z-iz)<=r)return;
+  const px0=SHORE.pierX0,pz=SHORE.pierZ;
   v.z=THREE.MathUtils.clamp(v.z,pz-.4,pz+.4);
-  v.x=THREE.MathUtils.clamp(v.x,px0-.2,px0+1.95);}
+  v.x=THREE.MathUtils.clamp(v.x,px0-.2,px0+(SHORE.pierLen-1)*.44+.19);}
 
 function startHold(e){e.preventDefault();
   if(state!=='idle')return;
@@ -571,6 +582,9 @@ function loop(){
   W.waterTop.mat.uniforms.uT.value=tNow;
   W.floorMat.uniforms.uT.value=tNow;
   W.sideMats.forEach(m=>m.uniforms.uT.value=tNow);
+  /* 낮/밤·날씨에 따라 변하는 태양 색·세기를 물 반짝임에 반영 */
+  W.waterTop.mat.uniforms.uSunColor.value.set(sun.color.r, sun.color.g, sun.color.b);
+  W.waterTop.mat.uniforms.uSunStrength.value = sun.intensity;
   if(charAnim)charAnim.mixer.update(dt);
 
   const chr=W.chr;
@@ -690,7 +704,8 @@ function loop(){
   W.env.weeds.forEach(w=>{w.rotation.z=Math.sin(tNow*1.6+w.userData.ph)*.14;});
   W.env.tree.children.forEach((l,k)=>{if(k>0)l.position.x+=(Math.sin(tNow*1.2+k)*.04-l.position.x)*.1;});
   W.env.lilies.forEach((l,k)=>{l.position.y=.03+Math.sin(tNow*1.4+k)*.015;l.rotation.y+=dt*.05;});
-  W.env.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>8)c.position.x=-8;});
+  const cloudBound = SIZE*.72;
+  W.env.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>cloudBound)c.position.x=-cloudBound;});
   updateBubbles(W.bubbles, dt);
   updateGodRays(W.rays, tNow);
   updateSon(dt);

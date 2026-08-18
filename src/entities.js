@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { SIZE, DEPTH, HALF } from './config.js';
+import { SIZE, DEPTH, HALF, shoreLayout } from './config.js';
+import { ginghamTexture, stripeTexture, skinTexture, feltTexture, woodTexture, grassTexture, dirtTexture, cloudTexture } from './textures.js';
 import { AREA_SPECIES as AREA_SPECIES_REF } from './data.js';
 import charUrl from './assets/dad_lowpoly.glb?url';
 import fishUrl from './assets/fish.glb?url';
@@ -170,16 +171,22 @@ export function spawnFishes(scene, areaId='lake'){
 
 export function buildEnvironment(scene){
   const walkables = [];
-  const grassMat = new THREE.MeshStandardMaterial({color:0x74b654,roughness:.85});
-  const dirtMat  = new THREE.MeshStandardMaterial({color:0x8a6b47,roughness:1});
-  const woodMat  = new THREE.MeshStandardMaterial({color:0x9c6b3d,roughness:.7});
+  /* 맵이 커진 만큼(SIZE=9, 기존 6 기준) 소품 밀도도 같이 올려 Sims식으로 "꽉 찬" 느낌을 낸다 */
+  const DENS = SIZE/6;
+  const grassMat = new THREE.MeshStandardMaterial({color:0x74b654,roughness:.85,
+    map: grassTexture(0x74b654)});
+  const dirtMat  = new THREE.MeshStandardMaterial({color:0x8a6b47,roughness:1,
+    map: dirtTexture(0x8a6b47)});
+  const woodMat  = new THREE.MeshStandardMaterial({color:0x9c6b3d,roughness:.7,
+    map: woodTexture(0x9c6b3d,1,3)});
   const leafMat  = new THREE.MeshStandardMaterial({color:0x5faf4e,roughness:.9});
+  const hedgeMat = new THREE.MeshStandardMaterial({color:0x4a8f4a,roughness:.85});
 
   const base = new THREE.Mesh(new THREE.BoxGeometry(SIZE+.14,.3,SIZE+.14), dirtMat);
   base.position.y = -DEPTH-.16; scene.add(base);
 
   const rockMat = new THREE.MeshStandardMaterial({color:0x7d8a90,roughness:1});
-  for(let i=0;i<7;i++){
+  for(let i=0;i<Math.round(7*DENS);i++){
     const r=.18+Math.random()*.3;
     const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(r,1),rockMat);
     rock.position.set((Math.random()-.5)*SIZE*.85,-DEPTH+r*.6,(Math.random()-.5)*SIZE*.85);
@@ -188,7 +195,7 @@ export function buildEnvironment(scene){
   }
   const weeds=[];
   const weedMat=new THREE.MeshStandardMaterial({color:0x3f9a5e,roughness:.9});
-  for(let i=0;i<14;i++){
+  for(let i=0;i<Math.round(14*DENS);i++){
     const h=.4+Math.random()*.7;
     const w=new THREE.Mesh(new THREE.ConeGeometry(.05,h,10),weedMat);
     w.position.set((Math.random()-.5)*SIZE*.9,-DEPTH+h/2,(Math.random()-.5)*SIZE*.9);
@@ -196,51 +203,111 @@ export function buildEnvironment(scene){
     weeds.push(w); scene.add(w);
   }
 
-  const iDirt=new THREE.Mesh(new THREE.BoxGeometry(2.2,DEPTH*.55,2.2),dirtMat);
-  iDirt.position.set(-HALF+1.1,-DEPTH*.55/2+.3,-HALF+1.1); iDirt.castShadow=true; scene.add(iDirt);
-  const iTop=new THREE.Mesh(new THREE.BoxGeometry(2.24,.16,2.24),grassMat);
-  iTop.position.set(-HALF+1.1,.38,-HALF+1.1);
+  /* 물가 잔디밭 — 맵이 커진 만큼 넓혀서 소품 놓을 자리 확보 (config.js의 shoreLayout과 동일 공식) */
+  const { patchSize, patchOfs, shoreX, shoreZ, pierLen: sharedPierLen, pierX0: sharedPierX0 } = shoreLayout();
+  const iDirt=new THREE.Mesh(new THREE.BoxGeometry(patchSize,DEPTH*.55,patchSize),dirtMat);
+  iDirt.position.set(shoreX,-DEPTH*.55/2+.3,shoreZ); iDirt.castShadow=true; scene.add(iDirt);
+  const iTop=new THREE.Mesh(new THREE.BoxGeometry(patchSize+.04,.16,patchSize+.04),grassMat);
+  iTop.position.set(shoreX,.38,shoreZ);
   iTop.castShadow=iTop.receiveShadow=true;
   scene.add(iTop); walkables.push(iTop);
 
-  const tree=new THREE.Group();
-  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.09,.12,.9,14),woodMat);
-  trunk.position.y=.9; trunk.castShadow=true; tree.add(trunk);
-  [[0,1.6,0,.55],[-.35,1.35,.1,.38],[.33,1.4,-.08,.36]].forEach(([x,y,z,r])=>{
-    const l=new THREE.Mesh(new THREE.IcosahedronGeometry(r,2),leafMat);
-    l.position.set(x,y,z); l.castShadow=true; tree.add(l);
+  /* 산울타리(hedge) — Sims 정원처럼 잔디밭 가장자리를 따라 두름 */
+  const hedgeN = Math.max(6, Math.round(patchSize*2.2));
+  for(let i=0;i<hedgeN;i++){
+    const t = i/hedgeN;
+    const edge = Math.floor(t*2);
+    const along = (t*2 - edge) * patchSize - patchOfs;
+    const hx = edge===0 ? shoreX+along : shoreX-patchOfs-.12;
+    const hz = edge===0 ? shoreZ-patchOfs-.12 : shoreZ+along;
+    const bush=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),hedgeMat);
+    bush.scale.set(1,.8,1); bush.position.set(hx,.5,hz); bush.castShadow=true;
+    scene.add(bush);
+  }
+
+  function makeTree(){
+    const tr=new THREE.Group();
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.09,.12,.9,14),woodMat);
+    trunk.position.y=.9; trunk.castShadow=true; tr.add(trunk);
+    [[0,1.6,0,.55],[-.35,1.35,.1,.38],[.33,1.4,-.08,.36]].forEach(([x,y,z,r])=>{
+      const l=new THREE.Mesh(new THREE.IcosahedronGeometry(r,2),leafMat);
+      l.position.set(x,y,z); l.castShadow=true; tr.add(l);
+    });
+    return tr;
+  }
+  const tree=makeTree();
+  tree.position.set(shoreX-patchOfs*.55,.3,shoreZ-patchOfs*.55); scene.add(tree);
+  /* 밀도용 여분 나무 — 넓어진 물가를 채움 */
+  const extraTrees=Math.max(0,Math.round(2*DENS)-1);
+  for(let i=0;i<extraTrees;i++){
+    const t2=makeTree(); const s=.75+Math.random()*.3; t2.scale.setScalar(s);
+    t2.position.set(shoreX+patchOfs*.5+Math.random()*.6, .3, shoreZ+patchOfs*.7-i*.9);
+    scene.add(t2);
+  }
+
+  /* 가로등 — 물가를 따라 두 개 */
+  const lampPostM=new THREE.MeshStandardMaterial({color:0x2a3038,roughness:.5});
+  const lampGlowM=new THREE.MeshStandardMaterial({color:0xffe9a0,roughness:.3,
+    emissive:0xffc860,emissiveIntensity:1.6});
+  [[shoreX-patchOfs-.2,shoreZ+patchOfs*.3],[shoreX+patchOfs*.2,shoreZ-patchOfs-.2]].forEach(([lx,lz])=>{
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(.025,.03,.7,8),lampPostM);
+    post.position.set(lx,.35+.46,lz); post.castShadow=true; scene.add(post);
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(.045,10,8),lampGlowM);
+    glow.position.set(lx,.72+.46,lz); scene.add(glow);
   });
-  tree.position.set(-HALF+.7,.3,-HALF+.7); scene.add(tree);
 
   const pier=new THREE.Group();
-  for(let k=0;k<5;k++){
+  const pierLen = sharedPierLen;
+  for(let k=0;k<pierLen;k++){
     const p=new THREE.Mesh(new THREE.BoxGeometry(.4,.07,.9),woodMat);
     p.position.set(k*.44,.42,0);
     p.castShadow=p.receiveShadow=true;
     pier.add(p); walkables.push(p);
   }
-  for(const px of [.1,1,1.8]) for(const pz of [-.35,.35]){
+  const pierPostX = [.1, pierLen*.44*.5, pierLen*.44-.35];
+  for(const px of pierPostX) for(const pz of [-.35,.35]){
     const post=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,1.4,8),woodMat);
     post.position.set(px,-.3,pz); post.castShadow=true; pier.add(post);
   }
-  pier.position.set(-HALF+2.1,0,-HALF+1.1); scene.add(pier);
+  /* 로프 난간 — Sims식 데크 특징 */
+  const railPostM=new THREE.MeshStandardMaterial({color:0x6b4a2b,roughness:.8});
+  const ropeM=new THREE.MeshStandardMaterial({color:0xe8dcc0,roughness:.9});
+  for(const pz of [-.44,.44]){
+    for(let k=0;k<=pierLen;k+=1){
+      const rp=new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.34,6),railPostM);
+      rp.position.set(k*.44-.1,.6,pz); rp.castShadow=true; pier.add(rp);
+    }
+    const rope=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,pierLen*.44,6),ropeM);
+    rope.rotation.z=Math.PI/2;
+    rope.position.set((pierLen*.44-.44)/2,.66,pz); pier.add(rope);
+  }
+  pier.position.set(sharedPierX0,0,shoreZ);
+  scene.add(pier);
 
   const lilyM=new THREE.MeshStandardMaterial({color:0x5aa64e,roughness:.9});
   const lilies=[];
-  [[1.6,1.8],[2.2,.3],[-.8,2.2],[.6,-2.3],[-2.2,-1.2]].forEach(([x,z])=>{
+  const lilyBase=[[1.6,1.8],[2.2,.3],[-.8,2.2],[.6,-2.3],[-2.2,-1.2],
+    [3.1,-1.6],[-3.0,1.4],[1.2,3.0]];
+  lilyBase.forEach(([x,z])=>{
     const l=new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.02,16,1,false,.4,5.6),lilyM);
-    l.position.set(x,.03,z); lilies.push(l); scene.add(l);
+    l.position.set(x*DENS,.03,z*DENS); lilies.push(l); scene.add(l);
   });
 
-  const cloudM=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,transparent:true,opacity:.92});
+  /* 구름: 겹친 스피어 뭉치가 아니라 부드럽게 번지는 텍스처 스프라이트 —
+     실제 뭉게구름처럼 윤곽이 흐릿하고 카메라를 항상 정면으로 향함 */
   const clouds=[];
-  for(let i=0;i<3;i++){
-    const c=new THREE.Group();
-    [[0,0,0,.5],[.55,.08,.1,.36],[-.5,.05,-.05,.32]].forEach(([x,y,z,r])=>{
-      const s=new THREE.Mesh(new THREE.SphereGeometry(r,18,14),cloudM);
-      s.position.set(x,y,z); s.scale.y=.6; c.add(s);
-    });
-    c.position.set(-6+i*5,3.4+i*.5,-3+i*2.4);
+  const cloudN=Math.max(3,Math.round(3*DENS));
+  const cloudSpread = SIZE*1.2, cloudDepth = SIZE*.9;
+  for(let i=0;i<cloudN;i++){
+    const mat=new THREE.SpriteMaterial({
+      map: cloudTexture(i), transparent:true, depthWrite:false, opacity:.94});
+    const c=new THREE.Sprite(mat);
+    const cs = 2.6+Math.random()*1.8;
+    c.scale.set(cs*1.55, cs, 1);
+    c.position.set(
+      -cloudSpread*.6+(i/cloudN)*cloudSpread*1.2,
+      3.4+(i%3)*.5,
+      -cloudDepth*.35+(i/cloudN)*cloudDepth);
     c.userData.sp=.12+i*.05;
     clouds.push(c); scene.add(c);
   }
@@ -302,7 +369,9 @@ export function decorateArea(group, areaId, DEPTH_, HALF_){
     group.userData.dog=dog;
   }
   if(areaId==='ruins'){
-    [[1.4,-0.6],[0.3,1.7],[-1.2,-1.8],[2.2,1.2]].forEach(([x,z],k)=>{
+    const RDENS = SIZE/6;
+    [[1.4,-0.6],[0.3,1.7],[-1.2,-1.8],[2.2,1.2],[-2.6,.4],[3.1,-2.2]].forEach(([x,z],k)=>{
+      x*=RDENS; z*=RDENS;
       const h = 1.4 + (k%2)*0.8;
       const col = new THREE.Mesh(new THREE.CylinderGeometry(.22,.26,h,10), stone);
       col.position.set(x, -DEPTH_+h/2, z); col.castShadow=true; group.add(col);
@@ -344,11 +413,12 @@ export function decorateArea(group, areaId, DEPTH_, HALF_){
     chest.position.set(1.6,-DEPTH_+.18,-1.2);
     chest.rotation.y=.6;
     group.add(chest);
-    for(let i=0;i<5;i++){
+    const SDENS = SIZE/6;
+    for(let i=0;i<Math.round(5*SDENS);i++){
       const c=new THREE.Mesh(new THREE.ConeGeometry(.09,.4,6),
         new THREE.MeshStandardMaterial({color:[0xff7ab8,0x7adfff,0xb87aff][i%3],roughness:.6,
           emissive:[0xff7ab8,0x7adfff,0xb87aff][i%3],emissiveIntensity:.8}));
-      c.position.set((Math.random()-.5)*4.5,-DEPTH_+.2,(Math.random()-.5)*4.5);
+      c.position.set((Math.random()-.5)*4.5*SDENS,-DEPTH_+.2,(Math.random()-.5)*4.5*SDENS);
       c.rotation.z=(Math.random()-.5)*.5;
       group.add(c);
     }
@@ -357,9 +427,9 @@ export function decorateArea(group, areaId, DEPTH_, HALF_){
 
 export function buildCharacter(scene, woodMat){
   const chr=new THREE.Group();
-  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8});
-  const cloth=new THREE.MeshStandardMaterial({color:0xf2a65a,roughness:.85});
-  const hatM=new THREE.MeshStandardMaterial({color:0x4a8fa8,roughness:.85});
+  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8, map:skinTexture(0xffe3c7)});
+  const cloth=new THREE.MeshStandardMaterial({color:0xf2a65a,roughness:.85, map:ginghamTexture(0xf2a65a)});
+  const hatM=new THREE.MeshStandardMaterial({color:0x4a8fa8,roughness:.85, map:feltTexture(0x4a8fa8)});
   const body=new THREE.Mesh(new THREE.SphereGeometry(.19,16,12),cloth);
   body.scale.set(1,1.15,.9); body.position.y=.22;
   const head=new THREE.Mesh(new THREE.SphereGeometry(.24,18,14),skin); head.position.y=.62;
@@ -369,13 +439,28 @@ export function buildCharacter(scene, woodMat){
   const e1=new THREE.Mesh(new THREE.SphereGeometry(.028,8,8),eyeMt);
   const e2=e1.clone();
   e1.position.set(.1,.62,.2); e2.position.set(-.1,.62,.2);
-  const placeholder=[body,head,brim,cap,e1,e2];
+  const pantsM=new THREE.MeshStandardMaterial({color:0x5a4230,roughness:.85});
+  const shoeM=new THREE.MeshStandardMaterial({color:0x4a3222,roughness:.7});
+  const legs=[-.075,.075].map(x=>{
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.048,.09,4,8),pantsM);
+    leg.position.set(x,.06,0); return leg;
+  });
+  const shoes=[-.075,.075].map(x=>{
+    const shoe=new THREE.Mesh(new THREE.SphereGeometry(.06,8,6),shoeM);
+    shoe.scale.set(1,.65,1.3); shoe.position.set(x,.015,.02); return shoe;
+  });
+  const arms=[-.2,.2].map(x=>{
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.038,.19,4,8),cloth);
+    arm.position.set(x,.30,0); arm.rotation.z=x<0?.3:-.3; return arm;
+  });
+  const placeholder=[body,head,brim,cap,e1,e2,...legs,...shoes,...arms];
   const rod=new THREE.Mesh(new THREE.CylinderGeometry(.014,.02,1.3,8),woodMat);
   rod.position.set(.28,.75,.3); rod.rotation.set(Math.PI/3.5,0,-Math.PI/9);
   chr.add(...placeholder, rod);
   chr.userData.placeholder = placeholder;
   chr.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
-  chr.position.set(-HALF+2.1+1.8,.46,-HALF+1.1);
+  /* 데크 끝자락에 서도록 shoreLayout 공식으로 위치 계산 (맵 크기 바뀌어도 항상 데크 위) */
+  { const S=shoreLayout(); chr.position.set(S.pierX0+(S.pierLen-1)*.44+.04,.46,S.pierZ); }
   scene.add(chr);
   const rodTip = ()=>chr.localToWorld(new THREE.Vector3(.42,1.35,.75));
   return { chr, rodTip };
@@ -402,6 +487,18 @@ export async function upgradeAssets(chr, fishes){
   if(g){
     chr.userData.placeholder.forEach(p=>p.visible=false);
     const model = normalizeModel(g.scene, 1.05);
+    /* GLB 재질(Cloth/Skin/Hat/Wood)은 텍스처 없이 단색이라 밋밋해 보임 —
+       이름으로 찾아서 프로시저럴 텍스처를 입혀 표면 디테일을 준다 */
+    const matTex = {
+      Cloth: ginghamTexture(0xf2a65a), Skin: skinTexture(0xffe3c7),
+      Hat: feltTexture(0x4a8fa8), Wood: woodTexture(0x9c6b3d,1,3),
+    };
+    model.traverse(o=>{
+      if(o.isMesh && o.material && matTex[o.material.name] && !o.material.map){
+        o.material.map = matTex[o.material.name];
+        o.material.needsUpdate = true;
+      }
+    });
     chr.add(model);
     if(g.animations && g.animations.length){
       const mixer = new THREE.AnimationMixer(model);
@@ -469,9 +566,9 @@ export function makeDecoMesh(id){
 /* ---------- 아들 NPC (동행 캐릭터) ---------- */
 export function buildSon(scene, parentPos){
   const son=new THREE.Group();
-  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8});
-  const cloth=new THREE.MeshStandardMaterial({color:0x6aa8d8,roughness:.85}); // 파란 옷(아빠와 구분)
-  const hairM=new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:.8});
+  const skin=new THREE.MeshStandardMaterial({color:0xffe3c7,roughness:.8, map:skinTexture(0xffe3c7)});
+  const cloth=new THREE.MeshStandardMaterial({color:0x6aa8d8,roughness:.85, map:stripeTexture(0x6aa8d8)}); // 파란 스트라이프 옷(아빠와 구분)
+  const hairM=new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:.8, map:feltTexture(0x3a2a1a)});
   const scale=0.72; // 아빠보다 작은 아이 비율
   const body=new THREE.Mesh(new THREE.SphereGeometry(.16*scale/.9,16,12),cloth);
   body.scale.set(1,1.1,.9); body.position.y=.16;
@@ -486,7 +583,23 @@ export function buildSon(scene, parentPos){
   const c1=new THREE.Mesh(new THREE.SphereGeometry(.03,8,8),cheekM);
   const c2=c1.clone();
   c1.position.set(.14,.40,.14); c2.position.set(-.14,.40,.14);
-  son.add(body,head,hair,e1,e2,c1,c2);
+
+  /* 팔다리/신발 — 그냥 텍스처만 입은 공이 아니라 실제 사람처럼 보이도록 */
+  const pantsM=new THREE.MeshStandardMaterial({color:0x3d5a78,roughness:.85});
+  const shoeM=new THREE.MeshStandardMaterial({color:0x4a3222,roughness:.7});
+  const legs=[-.055,.055].map(x=>{
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.035,.07,4,8),pantsM);
+    leg.position.set(x,.045,0); return leg;
+  });
+  const shoes=[-.055,.055].map(x=>{
+    const shoe=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),shoeM);
+    shoe.scale.set(1,.65,1.3); shoe.position.set(x,.012,.015); return shoe;
+  });
+  const arms=[-.15,.15].map(x=>{
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.028,.15,4,8),cloth);
+    arm.position.set(x,.23,0); arm.rotation.z=x<0?.32:-.32; return arm;
+  });
+  son.add(body,head,hair,e1,e2,c1,c2,...legs,...shoes,...arms);
   son.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
   son.position.copy(parentPos);
   scene.add(son);
