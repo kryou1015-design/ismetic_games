@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { SIZE, DEPTH, HALF, shoreLayout } from './config.js';
-import { ginghamTexture, stripeTexture, skinTexture, feltTexture, woodTexture, grassTexture, dirtTexture } from './textures.js';
+import { ginghamTexture, stripeTexture, skinTexture, feltTexture, woodTexture, grassTexture, dirtTexture, cloudTexture } from './textures.js';
 import { AREA_SPECIES as AREA_SPECIES_REF } from './data.js';
 import charUrl from './assets/dad_lowpoly.glb?url';
 import fishUrl from './assets/fish.glb?url';
@@ -293,16 +293,21 @@ export function buildEnvironment(scene){
     l.position.set(x*DENS,.03,z*DENS); lilies.push(l); scene.add(l);
   });
 
-  const cloudM=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,transparent:true,opacity:.92});
+  /* 구름: 겹친 스피어 뭉치가 아니라 부드럽게 번지는 텍스처 스프라이트 —
+     실제 뭉게구름처럼 윤곽이 흐릿하고 카메라를 항상 정면으로 향함 */
   const clouds=[];
   const cloudN=Math.max(3,Math.round(3*DENS));
+  const cloudSpread = SIZE*1.2, cloudDepth = SIZE*.9;
   for(let i=0;i<cloudN;i++){
-    const c=new THREE.Group();
-    [[0,0,0,.5],[.55,.08,.1,.36],[-.5,.05,-.05,.32]].forEach(([x,y,z,r])=>{
-      const s=new THREE.Mesh(new THREE.SphereGeometry(r,18,14),cloudM);
-      s.position.set(x,y,z); s.scale.y=.6; c.add(s);
-    });
-    c.position.set(-6+i*(10/cloudN)*1.4,3.4+i*.5,-3+i*2.4);
+    const mat=new THREE.SpriteMaterial({
+      map: cloudTexture(i), transparent:true, depthWrite:false, opacity:.94});
+    const c=new THREE.Sprite(mat);
+    const cs = 2.6+Math.random()*1.8;
+    c.scale.set(cs*1.55, cs, 1);
+    c.position.set(
+      -cloudSpread*.6+(i/cloudN)*cloudSpread*1.2,
+      3.4+(i%3)*.5,
+      -cloudDepth*.35+(i/cloudN)*cloudDepth);
     c.userData.sp=.12+i*.05;
     clouds.push(c); scene.add(c);
   }

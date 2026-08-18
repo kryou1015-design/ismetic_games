@@ -704,7 +704,8 @@ function loop(){
   W.env.weeds.forEach(w=>{w.rotation.z=Math.sin(tNow*1.6+w.userData.ph)*.14;});
   W.env.tree.children.forEach((l,k)=>{if(k>0)l.position.x+=(Math.sin(tNow*1.2+k)*.04-l.position.x)*.1;});
   W.env.lilies.forEach((l,k)=>{l.position.y=.03+Math.sin(tNow*1.4+k)*.015;l.rotation.y+=dt*.05;});
-  W.env.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>8)c.position.x=-8;});
+  const cloudBound = SIZE*.72;
+  W.env.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>cloudBound)c.position.x=-cloudBound;});
   updateBubbles(W.bubbles, dt);
   updateGodRays(W.rays, tNow);
   updateSon(dt);

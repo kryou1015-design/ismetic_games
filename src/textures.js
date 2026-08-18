@@ -112,6 +112,39 @@ export function dirtTexture(baseHex, repeat=5){
   return tex;
 }
 
+/* 구름: 겹친 스피어 조각이 아니라, 부드러운 방사형 그라데이션 뭉치를 캔버스에 그려서
+   스프라이트로 띄운다 — 윤곽이 흐릿하게 번지는 진짜 뭉게구름 느낌 */
+export function cloudTexture(seed=0){
+  const w=256,h=160;
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const ctx=cv.getContext('2d');
+  let s=seed*9973+13; // 시드 기반 의사난수 (구름마다 다른 모양)
+  const rnd=()=>{ s=(s*1103515245+12345)&0x7fffffff; return (s%1000)/1000; };
+  ctx.globalCompositeOperation='lighter';
+  const cx=w/2, cy=h*.62, n=6+Math.floor(rnd()*3);
+  for(let i=0;i<n;i++){
+    const ang=(i/n)*Math.PI - Math.PI*.1;
+    const dist=(0.15+rnd()*.85)*w*.34;
+    const x=cx+Math.cos(ang)*dist, y=cy-Math.sin(ang)*dist*.4-rnd()*14;
+    const r=(0.34+rnd()*.4)*w*.26;
+    const g=ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba(255,255,255,.95)');
+    g.addColorStop(.65,'rgba(255,255,255,.55)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  /* 아랫면에 은은한 그림자 톤 — 입체감 */
+  ctx.globalCompositeOperation='source-atop';
+  const shade=ctx.createLinearGradient(0,h*.35,0,h*.95);
+  shade.addColorStop(0,'rgba(255,255,255,0)');
+  shade.addColorStop(1,'rgba(175,195,210,.55)');
+  ctx.fillStyle=shade; ctx.fillRect(0,0,w,h);
+  const tex=new THREE.CanvasTexture(cv);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+
 /* 나무: 결(그레인) 스트로크 — 낚싯대/데크/나무기둥 공용 */
 export function woodTexture(baseHex, repeatX=1, repeatY=3){
   const tex = canvasTex(128,(ctx,s)=>{

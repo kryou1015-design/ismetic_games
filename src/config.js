@@ -1,4 +1,4 @@
-export const SIZE=13, DEPTH=2.2, HALF=SIZE/2;
+export const SIZE=20, DEPTH=2.2, HALF=SIZE/2;
 
 /* 물가 잔디밭/데크 배치 — SIZE=6 기준으로 튜닝된 치수를 DENS 배율로 스케일.
    entities.js(지형 생성)와 game.js(걷기 범위 clamp)가 같은 공식을 써야
