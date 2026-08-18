@@ -34,8 +34,10 @@ renderer.toneMappingExposure = 1.15;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-/* 맵(SIZE)이 커진 만큼 카메라 프러스텀/거리도 같은 비율로 넓혀 화면 안에 다 들어오게 함 */
-const CAM_K = SIZE/6;
+/* 맵(SIZE)이 커진 만큼 카메라도 넓혀야 화면 안에 다 들어오지만, SIZE와 똑같은 비율로
+   줌아웃하면 실제 크기는 커져도 화면상 크기는 그대로라 "커졌다"는 느낌이 안 남.
+   sqrt로 덜 줌아웃시켜서 맵이 화면에서도 실제로 더 크게 보이게 함 */
+const CAM_K = Math.sqrt(SIZE/6);
 const frust = 9*CAM_K;
 let aspect = innerWidth/innerHeight;
 const camera = new THREE.OrthographicCamera(-frust*aspect/2, frust*aspect/2, frust/2, -frust/2, .1, 200);
