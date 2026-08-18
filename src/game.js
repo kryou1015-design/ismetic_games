@@ -17,6 +17,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { toonify } from './toon.js';
 
 export function start(){
 load();
@@ -117,10 +118,10 @@ function buildWorld(areaId){
   const env = buildEnvironment(group);
   decorateArea(group, areaId, DEPTH, HALF);
   const fishes = spawnFishes(group, areaId);
-  upgradeFishBodies(fishes);
+  upgradeFishBodies(fishes).then(()=>toonify(group));
   const { chr, rodTip } = buildCharacter(group, env.woodMat);
   const { bobG, fline } = buildBobber(group);
-  upgradeAssets(chr, fishes).then(a=>{ charAnim=a; });
+  upgradeAssets(chr, fishes).then(a=>{ charAnim=a; toonify(chr); });
 
   aimIndicator = new THREE.Mesh(new THREE.ConeGeometry(.05,.4,3),
     new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.55}));
@@ -150,6 +151,8 @@ function buildWorld(areaId){
       world.decoMeshes.push({mesh:m, id:d.id, x:d.x, z:d.z});
     });
   }
+  /* PBR 그라데이션 음영 → 셀셰이딩으로 일괄 변환 (동기적으로 지어진 것 전부) */
+  toonify(group);
 }
 function splash(x,z){
   world.waterTop.mat.uniforms.uRip.value[(ripCount++)%5].set(x,-z,tNow,1);
@@ -292,6 +295,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
       const m=makeDecoMesh(decoSel);
       m.position.set(hitW.point.x,.46,hitW.point.z);
       world.group.add(m);
+      toonify(m);
       world.decoMeshes.push({mesh:m,id:decoSel,x:hitW.point.x,z:hitW.point.z});
       S.decoInv[decoSel]--; S.deco.push({id:decoSel,x:hitW.point.x,z:hitW.point.z});
       save();
