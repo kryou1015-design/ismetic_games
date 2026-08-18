@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SIZE, DEPTH, HALF } from './config.js';
+import { SIZE, DEPTH, HALF, shoreLayout } from './config.js';
 import { AREAS, RAR_NAME, RAR_COL, rollSpecies, ROD_TIERS, FIGHT_DIFF,
          XP_PER_RAR, levelOf } from './data.js';
 import { S, save, load } from './state.js';
@@ -33,10 +33,12 @@ renderer.toneMappingExposure = 1.15;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const frust = 9;
+/* 맵(SIZE)이 커진 만큼 카메라 프러스텀/거리도 같은 비율로 넓혀 화면 안에 다 들어오게 함 */
+const CAM_K = SIZE/6;
+const frust = 9*CAM_K;
 let aspect = innerWidth/innerHeight;
-const camera = new THREE.OrthographicCamera(-frust*aspect/2, frust*aspect/2, frust/2, -frust/2, .1, 100);
-camera.position.set(9.2, 7.4, 9.2); camera.lookAt(0,-.5,0);
+const camera = new THREE.OrthographicCamera(-frust*aspect/2, frust*aspect/2, frust/2, -frust/2, .1, 200);
+camera.position.set(9.2*CAM_K, 7.4*CAM_K, 9.2*CAM_K); camera.lookAt(0,-.5,0);
 
 /* 블룸 포스트프로세싱 */
 const composer = new EffectComposer(renderer);
@@ -311,12 +313,15 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   const hitT=ray.intersectObject(world.waterTop.mesh)[0];
   if(hitT)splash(hitT.point.x,hitT.point.z);
 });
+/* buildEnvironment()의 물가 잔디밭/데크 치수와 같은 공식(shoreLayout)을 그대로 써서
+   맵 크기가 바뀌어도 걸을 수 있는 영역이 항상 실제 지형과 일치하게 유지 */
+const SHORE = shoreLayout();
 function clampToWalk(v){
-  const ix=-HALF+1.1,iz=-HALF+1.1;
-  if(Math.abs(v.x-ix)<=1.05&&Math.abs(v.z-iz)<=1.05)return;
-  const px0=-HALF+2.1,pz=-HALF+1.1;
+  const ix=SHORE.shoreX,iz=SHORE.shoreZ, r=SHORE.patchOfs-.05;
+  if(Math.abs(v.x-ix)<=r&&Math.abs(v.z-iz)<=r)return;
+  const px0=SHORE.pierX0,pz=SHORE.pierZ;
   v.z=THREE.MathUtils.clamp(v.z,pz-.4,pz+.4);
-  v.x=THREE.MathUtils.clamp(v.x,px0-.2,px0+1.95);}
+  v.x=THREE.MathUtils.clamp(v.x,px0-.2,px0+(SHORE.pierLen-1)*.44+.19);}
 
 function startHold(e){e.preventDefault();
   if(state!=='idle')return;

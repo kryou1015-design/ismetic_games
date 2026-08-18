@@ -78,6 +78,40 @@ export function feltTexture(baseHex, repeat=2){
   return tex;
 }
 
+/* 잔디: Sims식 잔디깎이 줄무늬 + 미세 노이즈 */
+export function grassTexture(baseHex, repeat=6){
+  const tex = canvasTex(128,(ctx,s)=>{
+    ctx.fillStyle = shade(baseHex,0); ctx.fillRect(0,0,s,s);
+    const band = s/6;
+    for(let i=0;i<6;i++){
+      ctx.fillStyle = shade(baseHex, i%2===0 ? .07 : -.06);
+      ctx.fillRect(0,i*band,s,band);
+    }
+    ctx.globalAlpha=.35;
+    for(let i=0;i<500;i++){
+      ctx.fillStyle = shade(baseHex,(Math.random()-.5)*.18);
+      ctx.fillRect(Math.random()*s,Math.random()*s,1,2);
+    }
+    ctx.globalAlpha=1;
+  });
+  tex.repeat.set(repeat,repeat);
+  return tex;
+}
+
+/* 흙/모래: 자잘한 알갱이 스펙클 노이즈 */
+export function dirtTexture(baseHex, repeat=5){
+  const tex = canvasTex(128,(ctx,s)=>{
+    ctx.fillStyle = shade(baseHex,0); ctx.fillRect(0,0,s,s);
+    for(let i=0;i<900;i++){
+      ctx.fillStyle = shade(baseHex,(Math.random()-.5)*.30);
+      const r=.6+Math.random()*1.6;
+      ctx.beginPath(); ctx.arc(Math.random()*s,Math.random()*s,r,0,Math.PI*2); ctx.fill();
+    }
+  });
+  tex.repeat.set(repeat,repeat);
+  return tex;
+}
+
 /* 나무: 결(그레인) 스트로크 — 낚싯대/데크/나무기둥 공용 */
 export function woodTexture(baseHex, repeatX=1, repeatY=3){
   const tex = canvasTex(128,(ctx,s)=>{
