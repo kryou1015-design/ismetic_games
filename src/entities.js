@@ -402,6 +402,7 @@ export async function upgradeAssets(chr, fishes){
   if(g){
     chr.userData.placeholder.forEach(p=>p.visible=false);
     const model = normalizeModel(g.scene, 1.05);
+    model.traverse(o=>{ if(o.isMesh&&o.material){ if(o.material.name==='Cloth') o.material.color.set(0xf2a65a); if(o.material.name==='Hat') o.material.color.set(0x4f9bb0); } });
     chr.add(model);
     if(g.animations && g.animations.length){
       const mixer = new THREE.AnimationMixer(model);
