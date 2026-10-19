@@ -5,7 +5,7 @@ import { SIZE, DEPTH } from './config.js';
 const TIME_STATES = [
   { name:'새벽',  em:'🌅', elev:12,  azim:100, color:0xffb08a, sunI:.75, hemi:0xa8b8d8, hemiI:.55, skyTop:0xffd7b0, skyBot:0x8fa8c8 },
   { name:'한낮',  em:'☀️', elev:62,  azim:150, color:0xfff2dc, sunI:1.25,hemi:0xdff2f7, hemiI:.8,  skyTop:0xcfe9f5, skyBot:0xf6e7d3 },
-  { name:'노을',  em:'🌇', elev:15,  azim:250, color:0xffa060, sunI:1.0, hemi:0xe8b8a0, hemiI:.6,  skyTop:0xf6d8b8, skyBot:0xe89a7a },
+  { name:'노을',  em:'🌇', elev:15,  azim:250, color:0xffb070, sunI:1.3, hemi:0xf0c8a8, hemiI:.95,  skyTop:0xf6d8b8, skyBot:0xe89a7a },
   { name:'밤',    em:'🌙', elev:35,  azim:300, color:0x9fb4ff, sunI:.35, hemi:0x5a6a98, hemiI:.4,  skyTop:0x2c3e66, skyBot:0x40548c },
 ];
 const DAY_LEN = 210; // 4구간 전체 순환 초 (약 3.5분/사이클)
@@ -21,12 +21,15 @@ function lerpColor(a,b,t){ return new THREE.Color(a).lerp(new THREE.Color(b), t)
 function lerpAngle(a,b,t){ return a+(b-a)*t; }
 
 export function createEnvironment(scene, sun, hemi){
-  let dayT = Math.random()*DAY_LEN;
-  let weatherKey = 'clear';
+  const qs = new URLSearchParams(location.search);
+  const TQ = {dawn:0,noon:1,dusk:2,night:3}[qs.get('time')];   // ?time=dawn|noon|dusk|night 로 시간대 고정(테스트용)
+  const WQ = WEATHER_STATES[qs.get('weather')] ? qs.get('weather') : null; // ?weather=clear|cloudy|rain
+  let dayT = TQ!==undefined ? TQ*DAY_LEN/4 : Math.random()*DAY_LEN;
+  let weatherKey = WQ || 'clear';
   let weatherT = 0;
   let weatherDur = WEATHER_MIN_DUR + Math.random()*(WEATHER_MAX_DUR-WEATHER_MIN_DUR);
   let weatherBlend = 1; // 0→1 전환 진행도
-  let prevWeatherKey = 'clear';
+  let prevWeatherKey = WQ || 'clear';
 
   scene.fog = new THREE.FogExp2(0x9fb8c8, 0);
 
@@ -54,7 +57,7 @@ export function createEnvironment(scene, sun, hemi){
   }
 
   function update(dt, areaSky, areaNightForced){
-    dayT = (dayT+dt) % DAY_LEN;
+    if(TQ===undefined) dayT = (dayT+dt) % DAY_LEN;
     const seg = DAY_LEN/4;
     const idx = Math.floor(dayT/seg);
     const next = (idx+1)%4;
@@ -80,7 +83,7 @@ export function createEnvironment(scene, sun, hemi){
     /* 날씨 전환 */
     weatherT += dt;
     if(weatherBlend<1) weatherBlend = Math.min(1, weatherBlend+dt/4);
-    if(weatherT > weatherDur) pickNextWeather();
+    if(weatherT > weatherDur && !WQ) pickNextWeather();
     const W = WEATHER_STATES[weatherKey];
     const Wp = WEATHER_STATES[prevWeatherKey];
     const lightMul = Wp.lightMul+(W.lightMul-Wp.lightMul)*weatherBlend;
