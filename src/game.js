@@ -34,6 +34,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const frust = 9;
+const cR=new THREE.Vector3(),cU=new THREE.Vector3(),cF=new THREE.Vector3();
 let aspect = innerWidth/innerHeight;
 const camera = new THREE.OrthographicCamera(-frust*aspect/2, frust*aspect/2, frust/2, -frust/2, .1, 100);
 camera.position.set(9.2, 7.4, 9.2); camera.lookAt(0,-.5,0);
@@ -41,7 +42,7 @@ camera.position.set(9.2, 7.4, 9.2); camera.lookAt(0,-.5,0);
 /* 블룸 포스트프로세싱 */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .38, .65, .82);
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .14, .5, .93);
 composer.addPass(bloom);
 try{ composer.addPass(new SMAAPass(innerWidth,innerHeight)); }catch(e){ console.warn('SMAA skip',e); }
 composer.addPass(new OutputPass());
@@ -132,7 +133,7 @@ function buildWorld(areaId){
   enrichSeabed(group, areaId);
   const bubbles = addBubbles(group);
   const rays = addGodRays(group, A.night ? 0x9fd8ff : 0xfff0c0);
-  bloom.strength = A.night ? .55 : .38;
+  bloom.strength = A.night ? .32 : .14;
 
   world = { group, waterTop, floorMat:floor.mat, sideMats, fishes, env, chr, rodTip, bobG, fline, bubbles, rays, decoMeshes:[] };
   document.getElementById('loc').innerHTML =
@@ -690,12 +691,16 @@ function loop(){
   W.env.weeds.forEach(w=>{w.rotation.z=Math.sin(tNow*1.6+w.userData.ph)*.14;});
   W.env.tree.children.forEach((l,k)=>{if(k>0)l.position.x+=(Math.sin(tNow*1.2+k)*.04-l.position.x)*.1;});
   W.env.lilies.forEach((l,k)=>{l.position.y=.03+Math.sin(tNow*1.4+k)*.015;l.rotation.y+=dt*.05;});
-  W.env.clouds.forEach(c=>{c.position.x+=c.userData.sp*dt;if(c.position.x>8)c.position.x=-8;});
+  W.env.clouds.forEach(c=>{
+    c.userData.sx+=c.userData.sp*dt; if(c.userData.sx>aspect*frust/2+1.5)c.userData.sx=-aspect*frust/2-1.5;
+    camera.matrixWorld.extractBasis(cR,cU,cF);
+    c.position.copy(camera.position).addScaledVector(cR,c.userData.sx).addScaledVector(cU,c.userData.sy).addScaledVector(cF,-30);
+  });
   updateBubbles(W.bubbles, dt);
   updateGodRays(W.rays, tNow);
   updateSon(dt);
   const envInfo = env.update(dt, AREAS[curArea].sky, AREAS[curArea].night);
-  bloom.strength = (AREAS[curArea].night ? .55 : .38) * envInfo.bloomMul;
+  bloom.strength = (AREAS[curArea].night ? .32 : .14) * envInfo.bloomMul;
   const wEl=$('weatherPill');
   if(wEl) wEl.textContent = `${envInfo.timeEm} ${envInfo.timeName} · ${envInfo.weatherEm} ${envInfo.weatherName}`;
 

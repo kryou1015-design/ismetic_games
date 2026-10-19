@@ -232,7 +232,7 @@ export function buildEnvironment(scene){
     l.position.set(x,.03,z); lilies.push(l); scene.add(l);
   });
 
-  const cloudM=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,transparent:true,opacity:.92});
+  const cloudM=new THREE.MeshBasicMaterial({color:0xfff6ea,transparent:true,opacity:.8,depthWrite:false,fog:false});
   const clouds=[];
   for(let i=0;i<3;i++){
     const c=new THREE.Group();
@@ -240,8 +240,8 @@ export function buildEnvironment(scene){
       const s=new THREE.Mesh(new THREE.SphereGeometry(r,18,14),cloudM);
       s.position.set(x,y,z); s.scale.y=.6; c.add(s);
     });
-    c.position.set(-6+i*5,3.4+i*.5,-3+i*2.4);
-    c.userData.sp=.12+i*.05;
+    c.userData.sx=-6+i*5; c.userData.sy=3.7+(i%2)*.4;
+    c.userData.sp=.12+i*.05; c.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});
     clouds.push(c); scene.add(c);
   }
   return { walkables, weeds, tree, lilies, clouds, woodMat };
